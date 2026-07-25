@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>우리끼리 채팅</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"
+        onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';document.head.appendChild(s);"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    background: #f0f2f5;
+    display: flex;
+    justify-content: center;
+  }
+  #app {
+    width: 100%;
+    max-width: 560px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    box-shadow: 0 0 12px rgba(0,0,0,.08);
+  }
+
+  /* ---- 입장 화면 ---- */
+  #lobby {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    padding: 32px 28px;
+  }
+  #lobby h1 { font-size: 26px; text-align: center; margin-bottom: 6px; }
+  #lobby p.desc { text-align: center; color: #777; font-size: 14px; margin-bottom: 12px; }
+  #lobby input {
+    padding: 13px 14px;
+    font-size: 16px;
+    border: 1.5px solid #ccc;
+    border-radius: 10px;
+    outline: none;
+  }
+  #lobby input:focus { border-color: #4a7cff; }
+  #lobby button {
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  #btnCreate { background: #4a7cff; color: #fff; }
+  #btnJoin { background: #e8eefc; color: #2b53c4; }
+  #lobby .or { text-align: center; color: #aaa; font-size: 13px; }
+  #lobbyMsg { text-align: center; color: #d33; font-size: 14px; min-height: 18px; }
+
+  /* ---- 채팅 화면 ---- */
+  #chat { flex: 1; display: none; flex-direction: column; min-height: 0; }
+  #chatHeader {
+    padding: 12px 16px;
+    background: #4a7cff;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #chatHeader .room { font-weight: 700; font-size: 17px; }
+  #chatHeader .sub { font-size: 12px; opacity: .85; }
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #f7f8fb;
+  }
+  .msg { max-width: 78%; display: flex; flex-direction: column; }
+  .msg .name { font-size: 12px; color: #888; margin: 0 4px 2px; }
+  .msg .bubble {
+    padding: 9px 13px;
+    border-radius: 14px;
+    font-size: 15px;
+    line-height: 1.45;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+  .msg.other { align-self: flex-start; }
+  .msg.other .bubble { background: #fff; border: 1px solid #e3e5ea; border-top-left-radius: 4px; }
+  .msg.mine { align-self: flex-end; align-items: flex-end; }
+  .msg.mine .bubble { background: #4a7cff; color: #fff; border-top-right-radius: 4px; }
+  .msg .time { font-size: 11px; color: #b0b3ba; margin: 2px 4px 0; }
+  .sys { align-self: center; font-size: 12px; color: #999; background: #ececf1; padding: 4px 12px; border-radius: 12px; }
+
+  #inputBar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid #e5e7eb;
+    background: #fff;
+  }
+  #inputBar input {
+    flex: 1;
+    padding: 12px 14px;
+    font-size: 15px;
+    border: 1.5px solid #ccc;
+    border-radius: 22px;
+    outline: none;
+  }
+  #inputBar input:focus { border-color: #4a7cff; }
+  #inputBar button {
+    padding: 0 20px;
+    font-size: 15px;
+    font-weight: 700;
+    border: none;
+    border-radius: 22px;
+    background: #4a7cff;
+    color: #fff;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 입장 화면 -->
+  <div id="lobby">
+    <h1>💬 우리끼리 채팅</h1>
+    <p class="desc">서버 없이 브라우저끼리 직접 연결됩니다.<br>방 번호를 아는 사람만 들어올 수 있어요.</p>
+    <input id="nickname" placeholder="닉네임" maxlength="12" autocomplete="off">
+    <button id="btnCreate">새 채팅방 만들기</button>
+    <div class="or">— 또는 —</div>
+    <input id="roomCode" placeholder="방 번호 4자리 (예: 1234)" maxlength="4" inputmode="numeric" autocomplete="off">
+    <button id="btnJoin">방 번호로 입장</button>
+    <div id="lobbyMsg"></div>
+  </div>
+
+  <!-- 채팅 화면 -->
+  <div id="chat">
+    <div id="chatHeader">
+      <div>
+        <div class="room" id="roomLabel"></div>
+        <div class="sub" id="roomSub"></div>
+      </div>
+    </div>
+    <div id="messages"></div>
+    <div id="inputBar">
+      <input id="msgInput" placeholder="메시지 입력..." autocomplete="off">
+      <button id="btnSend">전송</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// 방 번호로 PeerJS 공개 서버에서 서로를 찾은 뒤, 데이터는 브라우저 간 직접(P2P) 전송됩니다.
+const ID_PREFIX = "ssgh-3f-chat-";
+
+let peer = null;
+let isHost = false;
+let myName = "";
+let hostConn = null;        // 참가자 → 방장 연결
+const guestConns = new Map(); // 방장이 보관하는 참가자 연결 (peerId → conn)
+
+const $ = id => document.getElementById(id);
+
+function randomCode() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+function now() {
+  const d = new Date();
+  return d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0");
+}
+
+function showChat(code) {
+  $("lobby").style.display = "none";
+  $("chat").style.display = "flex";
+  $("roomLabel").textContent = "방 번호 " + code;
+  $("roomSub").textContent = isHost ? "내가 방장 · 이 화면을 닫으면 방이 사라져요" : "참가 중";
+  $("msgInput").focus();
+}
+
+function addMessage(name, text, mine) {
+  const wrap = document.createElement("div");
+  wrap.className = "msg " + (mine ? "mine" : "other");
+  if (!mine) {
+    const n = document.createElement("div");
+    n.className = "name";
+    n.textContent = name;
+    wrap.appendChild(n);
+  }
+  const b = document.createElement("div");
+  b.className = "bubble";
+  b.textContent = text;
+  wrap.appendChild(b);
+  const t = document.createElement("div");
+  t.className = "time";
+  t.textContent = now();
+  wrap.appendChild(t);
+  appendAndScroll(wrap);
+}
+
+function addSystem(text) {
+  const el = document.createElement("div");
+  el.className = "sys";
+  el.textContent = text;
+  appendAndScroll(el);
+}
+
+function appendAndScroll(el) {
+  const box = $("messages");
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+function lobbyError(text) {
+  $("lobbyMsg").textContent = text;
+  $("btnCreate").disabled = false;
+  $("btnJoin").disabled = false;
+}
+
+function getNickname() {
+  const name = $("nickname").value.trim();
+  if (!name) {
+    lobbyError("닉네임을 입력해 주세요.");
+    return null;
+  }
+  return name;
+}
+
+// ---------- 방장 ----------
+function createRoom() {
+  const name = getNickname();
+  if (!name) return;
+  myName = name;
+  $("btnCreate").disabled = true;
+  $("btnJoin").disabled = true;
+  $("lobbyMsg").textContent = "방을 만드는 중...";
+  openRoom(3); // 번호가 겹치면 최대 3번까지 새 번호로 재시도
+}
+
+function openRoom(retriesLeft) {
+  const code = randomCode();
+  peer = new Peer(ID_PREFIX + code);
+
+  peer.on("open", () => {
+    isHost = true;
+    showChat(code);
+    addSystem("방이 만들어졌어요. 방 번호 [" + code + "] 를 친구들에게 알려주세요!");
+  });
+
+  peer.on("connection", conn => {
+    conn.on("open", () => guestConns.set(conn.peer, conn));
+    conn.on("data", data => handleHostData(conn, data));
+    conn.on("close", () => {
+      const leaver = guestConns.get(conn.peer);
+      guestConns.delete(conn.peer);
+      const leftName = (leaver && leaver.metadata_name) || "누군가";
+      broadcast({ type: "sys", text: leftName + " 님이 나갔습니다." });
+      addSystem(leftName + " 님이 나갔습니다.");
+    });
+  });
+
+  peer.on("error", err => {
+    if (err.type === "unavailable-id" && retriesLeft > 0) {
+      peer.destroy();
+      openRoom(retriesLeft - 1);
+    } else {
+      lobbyError("연결 오류가 발생했어요. 새로고침 후 다시 시도해 주세요. (" + err.type + ")");
+    }
+  });
+}
+
+function handleHostData(conn, data) {
+  if (data.type === "hello") {
+    conn.metadata_name = data.name;
+    broadcast({ type: "sys", text: data.name + " 님이 들어왔습니다." }, conn.peer);
+    addSystem(data.name + " 님이 들어왔습니다.");
+    conn.send({ type: "sys", text: "환영합니다! 현재 " + (guestConns.size + 1) + "명이 참여 중이에요." });
+  } else if (data.type === "chat") {
+    addMessage(data.name, data.text, false);
+    broadcast(data, conn.peer); // 보낸 사람 제외 모두에게 전달
+  }
+}
+
+function broadcast(data, exceptPeerId) {
+  guestConns.forEach((conn, peerId) => {
+    if (peerId !== exceptPeerId && conn.open) conn.send(data);
+  });
+}
+
+// ---------- 참가자 ----------
+function joinRoom() {
+  const name = getNickname();
+  if (!name) return;
+  const code = $("roomCode").value.trim();
+  if (!/^\d{4}$/.test(code)) {
+    lobbyError("방 번호 4자리를 입력해 주세요.");
+    return;
+  }
+  myName = name;
+  $("btnCreate").disabled = true;
+  $("btnJoin").disabled = true;
+  $("lobbyMsg").textContent = "방에 연결하는 중...";
+
+  peer = new Peer();
+  peer.on("open", () => {
+    hostConn = peer.connect(ID_PREFIX + code, { reliable: true });
+    const timeout = setTimeout(() => {
+      if (!hostConn.open) lobbyError("방을 찾을 수 없어요. 번호를 확인해 주세요.");
+    }, 8000);
+
+    hostConn.on("open", () => {
+      clearTimeout(timeout);
+      isHost = false;
+      showChat(code);
+      hostConn.send({ type: "hello", name: myName });
+      addSystem("방에 입장했어요.");
+    });
+    hostConn.on("data", data => {
+      if (data.type === "chat") addMessage(data.name, data.text, false);
+      else if (data.type === "sys") addSystem(data.text);
+    });
+    hostConn.on("close", () => addSystem("방장이 나가서 연결이 끊어졌어요. 새로고침 후 다시 만들어 주세요."));
+  });
+  peer.on("error", err => {
+    if (err.type === "peer-unavailable") lobbyError("그 번호의 방이 없어요. 번호를 확인해 주세요.");
+    else lobbyError("연결 오류: " + err.type);
+  });
+}
+
+// ---------- 전송 ----------
+function sendMessage() {
+  const input = $("msgInput");
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  addMessage(myName, text, true);
+  const data = { type: "chat", name: myName, text: text };
+  if (isHost) broadcast(data);
+  else if (hostConn && hostConn.open) hostConn.send(data);
+}
+
+$("btnCreate").addEventListener("click", createRoom);
+$("btnJoin").addEventListener("click", joinRoom);
+$("btnSend").addEventListener("click", sendMessage);
+$("msgInput").addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
+$("roomCode").addEventListener("keydown", e => { if (e.key === "Enter") joinRoom(); });
+</script>
+</body>
+</html>
