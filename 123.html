@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>여행지리 스마트 팀메이커 (학생+교사 연동형)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800" x-data="app()">
+
+    <div class="max-w-4xl mx-auto p-4 md:p-6">
+        <!-- 상단 헤더 및 모드 전환 탭 -->
+        <header class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b pb-4 gap-4">
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold text-slate-900">🌍 여행지리 스마트 팀메이커</h1>
+                <p class="text-xs md:text-sm text-slate-500 mt-0.5">학생 직접 입력 및 교사 자동 매칭 시스템</p>
+            </div>
+            <!-- 모드 전환 버튼 -->
+            <div class="flex bg-slate-200 p-1 rounded-xl">
+                <button @click="mode = 'student'" 
+                    :class="mode === 'student' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+                    class="flex-1 sm:flex-none px-4 py-2 text-xs font-semibold rounded-lg transition">
+                    📱 학생 입력 화면
+                </button>
+                <button @click="mode = 'teacher'" 
+                    :class="mode === 'teacher' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+                    class="flex-1 sm:flex-none px-4 py-2 text-xs font-semibold rounded-lg transition">
+                    💻 교사 대시보드
+                </button>
+            </div>
+        </header>
+
+        <!-- ================= 1. 학생 입력 모드 ================= -->
+        <div x-show="mode === 'student'" class="space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-lg mx-auto">
+                <div class="text-center mb-6">
+                    <span class="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">모둠 프로젝트 사전 설문</span>
+                    <h2 class="text-lg font-bold text-slate-800 mt-2">나의 여행 성향을 등록해주세요!</h2>
+                    <p class="text-xs text-slate-400 mt-1">제출하면 교사 대시보드로 즉시 전송됩니다.</p>
+                </div>
+
+                <form @submit.prevent="submitStudent" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">이름</label>
+                        <input type="text" x-model="studentForm.name" placeholder="예: 김지리" required
+                            class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">선호 역할 (내가 자신 있는 분야)</label>
+                        <select x-model="studentForm.role" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="플래너">꼼꼼한 플래너 (일정/예산 조율)</option>
+                            <option value="탐험가">현장형 탐험가 (정보 수집/조사)</option>
+                            <option value="디자이너">시각화 디자이너 (기록/발표 자료 제작)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">관심 지리 테마</label>
+                        <select x-model="studentForm.theme" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="도시재생">도시 재생 및 주거환경</option>
+                            <option value="생태환경">생태 환경 및 기후변화</option>
+                            <option value="문화역사">문화 유적 및 역사 탐방</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition shadow-sm">
+                        설문 제출 완료하기 🚀
+                    </button>
+                </form>
+
+                <!-- 제출 완료 알림 메시지 -->
+                <div x-show="submittedAlert" x-transition class="mt-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-xl text-center font-medium">
+                    성공적으로 제출되었습니다! 교사 화면에서 확인할 수 있습니다.
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 2. 교사 대시보드 모드 ================= -->
+        <div x-show="mode === 'teacher'" class="space-y-6">
+            <!-- 제어 패널 -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">모둠 당 정원</label>
+                    <select x-model.number="teamSize" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="3">3명</option>
+                        <option value="4">4명</option>
+                        <option value="5">5명</option>
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <button @click="loadSampleData" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">샘플 데이터 채우기</button>
+                    <button @click="clearAll" class="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold rounded-xl transition">전체 초기화</button>
+                </div>
+                <button @click="generateTeams" :disabled="students.length === 0"
+                    class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-semibold text-sm rounded-xl transition shadow-sm">
+                    ⚡ 최적 모둠 자동 생성 (<span x-text="students.length"></span>명 참여중)
+                </button>
+            </div>
+
+            <!-- 제출 현황 및 결과 그리드 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- 좌측: 제출한 학생 명단 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-1">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-sm font-bold text-slate-700">실시간 제출 학생 명단</h2>
+                        <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-semibold" x-text="students.length + '명'"></span>
+                    </div>
+                    <div class="max-h-96 overflow-y-auto space-y-2 pr-1">
+                        <template x-for="s in students" :key="s.id">
+                            <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl text-xs border border-slate-100">
+                                <div>
+                                    <span class="font-bold text-slate-800" x-text="s.name"></span>
+                                    <span class="text-slate-400 ml-1" x-text="'[' + s.role + ' / ' + s.theme + ']'"></span>
+                                </div>
+                                <button @click="removeStudent(s.id)" class="text-slate-400 hover:text-rose-600 font-bold">×</button>
+                            </div>
+                        </template>
+                        <div x-show="students.length === 0" class="text-center py-12 text-slate-400 text-xs">
+                            아직 제출한 학생이 없습니다.<br>학생 입력 모드에서 먼저 등록해보세요!
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 우측: 모둠 결과 대시보드 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2">
+                    <h2 class="text-sm font-bold text-slate-700 mb-4">구성된 모둠 대시보드</h2>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[420px] overflow-y-auto pr-1">
+                        <template x-for="(team, tIdx) in teams" :key="tIdx">
+                            <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                                <div class="flex justify-between items-center mb-2 pb-2 border-b border-slate-200">
+                                    <span class="font-bold text-slate-700 text-xs" x-text="'모둠 ' + (tIdx + 1)"></span>
+                                    <span class="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded font-medium" x-text="team.length + '명'"></span>
+                                </div>
+                                <div class="space-y-1.5">
+                                    <template x-for="member in team" :key="member.id">
+                                        <div class="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-slate-100 text-xs">
+                                            <span class="font-medium text-slate-800" x-text="member.name"></span>
+                                            <div class="flex gap-1">
+                                                <span class="bg-indigo-50 text-indigo-700 px-1 py-0.5 rounded text-[10px]" x-text="member.role"></span>
+                                                <span class="bg-emerald-50 text-emerald-700 px-1 py-0.5 rounded text-[10px]" x-text="member.theme"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div x-show="teams.length === 0" class="text-center py-16 text-slate-400 text-xs">
+                        생성된 모둠이 없습니다. 상단의 '최적 모둠 자동 생성' 버튼을 눌러주세요.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function app() {
+            return {
+                mode: 'student', // 초기 화면은 학생 입력용
+                teamSize: 4,
+                submittedAlert: false,
+                studentForm: {
+                    name: '',
+                    role: '플래너',
+                    theme: '도시재생'
+                },
+                students: [],
+                teams: [],
+
+                init() {
+                    // 브라우저 저장소에서 기존 데이터 불러오기
+                    const saved = localStorage.getItem('travel_students');
+                    if (saved) this.students = JSON.parse(saved);
+                    
+                    const savedTeams = localStorage.getItem('travel_teams');
+                    if (savedTeams) this.teams = JSON.parse(savedTeams);
+                },
+
+                saveToStorage() {
+                    localStorage.setItem('travel_students', JSON.stringify(this.students));
+                    localStorage.setItem('travel_teams', JSON.stringify(this.teams));
+                },
+
+                submitStudent() {
+                    if (!this.studentForm.name.trim()) return;
+                    
+                    this.students.push({
+                        id: Date.now() + Math.random(),
+                        name: this.studentForm.name,
+                        role: this.studentForm.role,
+                        theme: this.studentForm.theme
+                    });
+
+                    this.saveToStorage();
+
+                    // 폼 초기화 및 알림
+                    this.studentForm.name = '';
+                    this.submittedAlert = true;
+                    setTimeout(() => this.submittedAlert = false, 3000);
+                },
+
+                removeStudent(id) {
+                    this.students = this.students.filter(s => s.id !== id);
+                    this.saveToStorage();
+                },
+
+                clearAll() {
+                    this.students = [];
+                    this.teams = [];
+                    localStorage.removeItem('travel_students');
+                    localStorage.removeItem('travel_teams');
+                },
+
+                loadSampleData() {
+                    const sampleNames = ['김지리', '이여행', '박탐험', '정도시', '최생태', '강문화', '한기후', '오공간', '조지형', '윤지도', '신여권', '배낭이'];
+                    const roles = ['플래너', '탐험가', '디자이너'];
+                    const themes = ['도시재생', '생태환경', '문화역사'];
+                    
+                    this.students = sampleNames.map((name, i) => ({
+                        id: Date.now() + i,
+                        name: name,
+                        role: roles[i % roles.length],
+                        theme: themes[Math.floor(i / 4) % themes.length]
+                    }));
+                    this.saveToStorage();
+                },
+
+                generateTeams() {
+                    if (this.students.length === 0) return;
+
+                    let pool = [...this.students].sort(() => Math.random() - 0.5);
+                    let resultTeams = [];
+                    let numTeams = Math.ceil(pool.length / this.teamSize);
+
+                    for (let i = 0; i < numTeams; i++) {
+                        resultTeams.push([]);
+                    }
+
+                    pool.forEach((student, index) => {
+                        let targetTeamIndex = index % numTeams;
+                        resultTeams[targetTeamIndex].push(student);
+                    });
+
+                    this.teams = resultTeams;
+                    this.saveToStorage();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
